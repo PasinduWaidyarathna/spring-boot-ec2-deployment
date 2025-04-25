@@ -14,7 +14,7 @@ public class TestController {
 
     @GetMapping("/test")
     public String testEndpoint() {
-        return "Hello, Spring Boot!";
+        return "Hello, Spring Boot! Pasindu";
     }
 }
 
