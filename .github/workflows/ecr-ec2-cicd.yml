@@ -62,6 +62,16 @@ jobs:
     name: Deploy Docker Container to EC2
     runs-on: ubuntu-latest
     steps:
+      # Fix hostname resolution issue on EC2
+      - name: Fix hostname resolution on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Fix hostname resolution on EC2
+            echo "127.0.0.1 $(hostname)" | sudo tee -a /etc/hosts
 
       - name: Install and Start Docker on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -87,33 +97,29 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             sudo apt-get update
-            sudo apt-get install -y snapd
-            if ! command -v aws &> /dev/null; then
-                sudo snap install aws-cli --classic
-            else
-                echo "AWS CLI is already installed."
-            fi
+            sudo apt-get install -y awscli
             aws --version
 
-      - name: Configure AWS Credentials on EC2
+      - name: Configure AWS and ECR Login on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_REGION,ECR_REGISTRY
           script: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region ${{ secrets.AWS_REGION }}
-
-      - name: Login to Amazon ECR on EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+            # Use environment variables directly
+            mkdir -p ~/.aws
+            cat > ~/.aws/credentials << EOF
+            [default]
+            aws_access_key_id = $AWS_ACCESS_KEY_ID
+            aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+            region = $AWS_REGION
+            EOF
+            
+            # Use the full ECR registry URL with HTTPS
+            export ECR_URL="https://$ECR_REGISTRY"
+            aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
 
       - name: Pull and Run Docker Image on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -121,9 +127,10 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: ECR_REPOSITORY_URI
           script: |
             sudo docker stop spring-boot-backend || true
             sudo docker rm spring-boot-backend || true
-            sudo docker rmi -f ${{ secrets.ECR_REPOSITORY_URI }}:latest || true
-            sudo docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
-            sudo docker run --name spring-boot-backend -d -p 8080:8080 ${{ secrets.ECR_REPOSITORY_URI }}:latest
+            sudo docker rmi -f $ECR_REPOSITORY_URI:latest || true
+            sudo docker pull $ECR_REPOSITORY_URI:latest
+            sudo docker run --name spring-boot-backend -d -p 8080:8080 $ECR_REPOSITORY_URI:latest
