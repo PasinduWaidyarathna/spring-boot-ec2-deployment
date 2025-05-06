@@ -62,6 +62,17 @@ jobs:
     name: Deploy Docker Container to EC2
     runs-on: ubuntu-latest
     steps:
+      - name: Fix DNS on EC2 (Google DNS)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo rm /etc/resolv.conf
+            echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+            sudo chattr +i /etc/resolv.conf
+
       - name: Install and Start Docker on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
