@@ -13,6 +13,7 @@ env:
   SSH_PRIVATE_KEY: ${{secrets.SSH_PRIVATE_KEY}}
   DOCKER_USERNAME: ${{secrets.DOCKER_USERNAME}}
   DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+  MONGODB_URI: ${{secrets.MONGODB_URI}}
 
 jobs:
 
@@ -30,6 +31,8 @@ jobs:
           cache: maven
       - name: Build and Test
         run: mvn clean test
+        env:
+          MONGODB_URI: ${{secrets.MONGODB_URI}}
 
   docker:
     needs: test
@@ -43,9 +46,12 @@ jobs:
         with:
           username: ${{env.DOCKER_USERNAME}}
           password: ${{env.DOCKER_PASSWORD}}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - name: Build & Push the Docker Image
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
           tags: ${{env.DOCKER_USERNAME}}/student-management-backend:latest
 
@@ -76,4 +82,9 @@ jobs:
             sudo docker stop student-management-backend || true
             sudo docker rm student-management-backend || true
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/student-management-backend:latest
-            sudo docker run -d --name student-management-backend -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/student-management-backend:latest
+
+            # Run with MongoDB URI environment variable
+            sudo docker run -d --name student-management-backend \
+              -p 8080:8080 \
+              -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
+              ${{ secrets.DOCKER_USERNAME }}/student-management-backend:latest
