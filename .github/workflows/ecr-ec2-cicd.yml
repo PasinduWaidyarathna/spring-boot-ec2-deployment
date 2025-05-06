@@ -16,6 +16,7 @@ env:
   AWS_REGION: ${{secrets.AWS_REGION}}
   ECR_REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+  MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
 jobs:
   test:
@@ -32,6 +33,8 @@ jobs:
           cache: maven
       - name: Build and Test
         run: mvn clean test
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
 
   ecr:
     needs: test
@@ -56,6 +59,8 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.ECR_REPOSITORY_URI }}:latest
+          build-args: |
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
 
   ec2:
     needs: ecr
@@ -125,4 +130,6 @@ jobs:
             sudo docker rm spring-boot-backend || true
             sudo docker rmi -f ${{ secrets.ECR_REPOSITORY_URI }}:latest || true
             sudo docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
-            sudo docker run --name spring-boot-backend -d -p 8080:8080 ${{ secrets.ECR_REPOSITORY_URI }}:latest
+            sudo docker run --name spring-boot-backend -d -p 8080:8080 \
+                          -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
+                          ${{ secrets.ECR_REPOSITORY_URI }}:latest
