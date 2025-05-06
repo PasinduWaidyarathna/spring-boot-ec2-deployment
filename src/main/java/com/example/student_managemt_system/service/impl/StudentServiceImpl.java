@@ -1,5 +1,6 @@
 package com.example.student_managemt_system.service.impl;
 
+import com.example.student_managemt_system.exception.ResourceNotFoundException;
 import com.example.student_managemt_system.model.Student;
 import com.example.student_managemt_system.repository.StudentRepository;
 import com.example.student_managemt_system.service.StudentService;
@@ -22,8 +23,10 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public Student getStudentById(String id) {
-        Optional<Student> opt = studentRepository.findById(id);
-        return opt.orElse(null);
+
+        return studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
+
     }
 
     @Override
@@ -33,20 +36,18 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public Student updateStudent(String id, Student updated) {
-        Optional<Student> opt = studentRepository.findById(id);
-        if (opt.isPresent()) {
-            Student existing = opt.get();
-            // update fields
-            existing.setFirstName(updated.getFirstName());
-            existing.setLastName(updated.getLastName());
-            existing.setEmail(updated.getEmail());
-            existing.setDepartment(updated.getDepartment());
-            existing.setYearOfEnrollment(updated.getYearOfEnrollment());
-            return studentRepository.save(existing);
-        } else {
-            // you might throw a custom exception here instead
-            throw new RuntimeException("Student with ID " + id + " not found.");
-        }
+
+        Student existing = studentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cannot update − no student with id: " + id));
+
+        existing.setFirstName(updated.getFirstName());
+        existing.setLastName(updated.getLastName());
+        existing.setEmail(updated.getEmail());
+        existing.setDepartment(updated.getDepartment());
+        existing.setYearOfEnrollment(updated.getYearOfEnrollment());
+
+        return studentRepository.save(existing);
+
     }
 
     @Override
