@@ -2,9 +2,9 @@ name: Spring Boot CICD pipeline with ECR and EC2
 run-name: Spring Boot CICD pipeline with ECR and EC2
 
 on:
-  push:
-    branches:
-      - main
+#  push:
+#    branches:
+#      - main
   workflow_dispatch:
 
 env:
