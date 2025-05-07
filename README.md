@@ -102,9 +102,9 @@ spring-boot-ec2-deployment/
 │           └── com/
 │               └── example/
 │                   └── student_managemt_system/
-│                       └── service/
-│                           ├──impl/
-│                           └── StudentManagementSystemApplicationTests
+│                       ├── service/
+│                       │    └──impl/
+│                       └── StudentManagementSystemApplicationTests
 ├── Dockerfile
 ├── pom.xml
 └── README.md
