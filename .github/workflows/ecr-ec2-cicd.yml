@@ -7,6 +7,7 @@ on:
 #      - main
   workflow_dispatch:
 
+# Environment variables used throughout the workflow
 env:
   SSH_USER: ${{secrets.SSH_USER}}
   SSH_HOST: ${{secrets.SSH_HOST}}
@@ -20,6 +21,7 @@ env:
   JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
 jobs:
+  # First job: Build and run tests to ensure code quality
   test:
     name: Build and Test
     runs-on: ubuntu-latest
@@ -38,6 +40,7 @@ jobs:
           MONGODB_URI: ${{ env.MONGODB_URI }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
 
+  # Second job: Build Docker image and push to Amazon ECR
   ecr:
     needs: test
     name: Build and Push Image to ECR
@@ -65,6 +68,7 @@ jobs:
             MONGODB_URI: ${{ env.MONGODB_URI }}
             JWT_SECRET: ${{ env.JWT_SECRET }}
 
+  # Third job: Deploy the Docker container to EC2 from ECR
   ec2:
     needs: ecr
     name: Deploy Docker Container to EC2
