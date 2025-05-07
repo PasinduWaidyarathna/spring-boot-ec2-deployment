@@ -14,8 +14,9 @@ COPY --from=build /app/target/*.jar app.jar
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-# Define MongoDB URI as environment variable
+# Define environment variable
 ENV MONGODB_URI=""
+ENV JWT_SECRET=""
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
