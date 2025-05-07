@@ -17,6 +17,7 @@ env:
   ECR_REPOSITORY_URI: ${{ secrets.ECR_REPOSITORY_URI }}
   ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
   MONGODB_URI: ${{ secrets.MONGODB_URI }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
 jobs:
   test:
@@ -34,7 +35,8 @@ jobs:
       - name: Build and Test
         run: mvn clean test
         env:
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_URI: ${{ env.MONGODB_URI }}
+          JWT_SECRET: ${{ env.JWT_SECRET }}
 
   ecr:
     needs: test
@@ -58,9 +60,10 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.ECR_REPOSITORY_URI }}:latest
+          tags: ${{ env.ECR_REPOSITORY_URI }}:latest
           build-args: |
-            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            MONGODB_URI: ${{ env.MONGODB_URI }}
+            JWT_SECRET: ${{ env.JWT_SECRET }}
 
   ec2:
     needs: ecr
@@ -70,9 +73,9 @@ jobs:
       - name: Install and Start Docker on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
             if ! command -v docker &> /dev/null; then
                 sudo apt-get update
@@ -86,9 +89,9 @@ jobs:
       - name: Install AWS CLI on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
             sudo apt-get update
             sudo apt-get install -y snapd
@@ -102,34 +105,35 @@ jobs:
       - name: Configure AWS Credentials on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region ${{ secrets.AWS_REGION }}
+            aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }}
+            aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }}
+            aws configure set region ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
 
       - name: Pull and Run Docker Image on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_PRIVATE_KEY }}
           script: |
             sudo docker stop spring-boot-backend || true
             sudo docker rm spring-boot-backend || true
-            sudo docker rmi -f ${{ secrets.ECR_REPOSITORY_URI }}:latest || true
-            sudo docker pull ${{ secrets.ECR_REPOSITORY_URI }}:latest
+            sudo docker rmi -f ${{ env.ECR_REPOSITORY_URI }}:latest || true
+            sudo docker pull ${{ env.ECR_REPOSITORY_URI }}:latest
             sudo docker run --name spring-boot-backend -d -p 8080:8080 \
-                          -e MONGODB_URI="${{ secrets.MONGODB_URI }}" \
-                          ${{ secrets.ECR_REPOSITORY_URI }}:latest
+                          -e MONGODB_URI="${{ env.MONGODB_URI }}" \
+                          -e JWT_SECRET="${{ env.JWT_SECRET }}" \
+                          ${{ env.ECR_REPOSITORY_URI }}:latest
